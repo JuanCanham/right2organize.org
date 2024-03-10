@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template will deploy an s3 bucket, Route53Zone & SSL certificate to host a static website
+Metadata:
+  License: magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3-or-Later
+
+Parameters:
+  SiteName:
+    Type: String
+    Description: Name for the site
+    AllowedPattern: '[a-zA-Z0-9-.]{1,63}'
+    ConstraintDescription: must be a valid DNS name.
+  CertificateARN:
+    Type: String
+  WWWCertificateARN:
+    Type: String
+
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: false
+      BucketName: !Ref SiteName
+      WebsiteConfiguration:
+        ErrorDocument: '404'
+        IndexDocument: index.html
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource:
+              - !Sub ${Bucket.Arn}/*
+
+  CloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref SiteName
+        Enabled: true
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateARN
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2018
+        Origins:
+          - Id: bucket
+            # Custom Origin used to allow redirects
+            DomainName: !Sub ${SiteName}.s3-website.${AWS::Region}.${AWS::URLSuffix}
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        DefaultCacheBehavior:
+          DefaultTTL: 3600
+          TargetOriginId: bucket
+          ViewerProtocolPolicy: allow-all
+          Compress: True
+          ForwardedValues:
+            QueryString: False
+
+  WWWBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub www.${SiteName}
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref SiteName
+          Protocol: https
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: false
+
+  WWWBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WWWBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource:
+              - !Sub ${WWWBucket.Arn}/*
+
+  WWWCloudfrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub www.${SiteName}
+        Enabled: true
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref WWWCertificateARN
+          SslSupportMethod: sni-only
+        Origins:
+          - Id: bucket
+            # Custom Origin used to allow redirects
+            DomainName: !Sub www.${SiteName}.s3-website.${AWS::Region}.${AWS::URLSuffix}
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          DefaultTTL: 3600
+          TargetOriginId: bucket
+          ViewerProtocolPolicy: allow-all
+          Compress: True
+          ForwardedValues:
+            QueryString: False
+
+Outputs:
+  CloudfrontDistribution:
+    Value: !Ref CloudfrontDistribution
+  WWWCNAME:
+    Value: !GetAtt WWWCloudfrontDistribution.DomainName
+  CNAME:
+    Value: !GetAtt CloudfrontDistribution.DomainName

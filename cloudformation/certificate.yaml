@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template for an SSL certificate (must be deployed in us-east-1 for cloudfront)
+Metadata:
+  License: magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3-or-Later
+
+Parameters:
+  SiteName:
+    Type: String
+    Description: Name for the site
+    AllowedPattern: '[a-zA-Z0-9-.]{1,63}'
+    ConstraintDescription: must be a valid DNS name.
+
+Resources:
+  SSLCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref SiteName
+      ValidationMethod: DNS
+
+  WWWSSLCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub www.${SiteName}
+      ValidationMethod: DNS
+
+Outputs:
+  CertificateARN:
+    Value: !Ref SSLCertificate
+  WWWCertificateARN:
+    Value: !Ref WWWSSLCertificate
