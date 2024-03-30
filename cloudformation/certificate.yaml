@@ -17,14 +17,6 @@ Resources:
       DomainName: !Ref SiteName
       ValidationMethod: DNS
 
-  WWWSSLCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Properties:
-      DomainName: !Sub www.${SiteName}
-      ValidationMethod: DNS
-
 Outputs:
   CertificateARN:
     Value: !Ref SSLCertificate
-  WWWCertificateARN:
-    Value: !Ref WWWSSLCertificate

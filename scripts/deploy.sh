@@ -14,12 +14,12 @@ deploy(){
 }
 
 get_output(){
-    echo "apt i" | jq -r ".[]|select(.OutputKey==\"$2\").OutputValue"
+    echo "$1" | jq -r ".[]|select(.OutputKey==\"$2\").OutputValue"
 }
 
 AWS_DEFAULT_REGION=us-east-1 deploy "${STACKNAME}-certificate" certificate.yaml SiteName="$SITENAME"
 OUTPUTS=$(aws cloudformation describe-stacks --region us-east-1 --stack-name "${STACKNAME}-certificate" --query Stacks[0].Outputs)
 
-AWS_DEFAULT_REGION=us-west-1 deploy "$STACKNAME" site.yaml SiteName="$SITENAME" CertificateARN="$(get_output "$OUTPUTS" CertificateARN)" WWWCertificateARN="$(get_output "$OUTPUTS" WWWCertificateARN)"
+AWS_DEFAULT_REGION=us-west-1 deploy "$STACKNAME" site.yaml SiteName="$SITENAME" CertificateARN="$(get_output "$OUTPUTS" CertificateARN)"
 
 
